@@ -11,3 +11,5 @@ node_modules
 /coverage.json
 
 ignition/deployments/chain-31337
+
+__pycache__
