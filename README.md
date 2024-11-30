@@ -1,4 +1,4 @@
-# Sparkchain
+# Sparkchain⚡
 
 ## Setup
 
