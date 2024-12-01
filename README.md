@@ -1,5 +1,9 @@
 # Sparkchain⚡
 
+## Warning!
+
+This project is under active development. 
+
 ## Setup
 
 ### Prerequisites
