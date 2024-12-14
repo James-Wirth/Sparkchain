@@ -1,5 +1,6 @@
 import dash
 from dash import dcc, html, Input, Output, State, callback_context, dash_table
+import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 from models.blockchain import Blockchain
 from ganache.ganache_manager import GanacheManager
@@ -103,7 +104,7 @@ def run_simulation():
 
     return trade_details
 
-app = dash.Dash(__name__)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = "Energy Trading Simulation"
 
 provider_url = "http://127.0.0.1:8545"
@@ -119,72 +120,128 @@ blockchain = Blockchain(provider_url, token_abi_path, token_address, trading_abi
 ganache_manager = GanacheManager()
 
 accounts = [
-    {"label": f"Account {i}: {ganache_manager.get_account(i)['address']}", "value": ganache_manager.get_account(i)['address']}
+    {
+        "label": f"Account {i} - {ganache_manager.get_account(i)['address'][:6]}...{ganache_manager.get_account(i)['address'][-4:]}",
+        "value": ganache_manager.get_account(i)["address"]
+    }
     for i in range(1, 10)
 ]
 
-app.layout = html.Div([
-    html.H1("Blockchain Energy Trading Simulation", style={"textAlign": "center"}),
+# Layout with modern components
+app.layout = dbc.Container([
+    dbc.Row(
+        dbc.Col(html.H1("Blockchain Energy Trading Simulation", className="text-center text-primary my-4"), width=12)
+    ),
 
-    html.Div([
-        html.H3("Fund Accounts"),
-        dcc.Dropdown(id="fund-account-dropdown", options=accounts, placeholder="Select Account"),
-        dcc.Input(id="fund-amount", type="number", placeholder="Amount (SPARK)", step=1),
-        html.Button("Fund", id="fund-button", n_clicks=0),
-        html.Div(id="fund-status")
-    ], style={"marginBottom": "20px"}),
+    dbc.Row([
+        dbc.Col([
+            html.H3("Fund Accounts", className="text-secondary"),
+            dbc.InputGroup([
+                dcc.Dropdown(
+                    id="fund-account-dropdown",
+                    options=accounts,
+                    placeholder="Select Account",
+                    style={"width": "100%"}
+                ),
+                dbc.Input(id="fund-amount", type="number", placeholder="Amount (SPARK)", step=1),
+                dbc.Button("Fund", id="fund-button", color="primary", className="ml-2"),
+            ], className="mb-3"),
+            html.Div(id="fund-status", className="text-info")
+        ], width=6),
 
-    html.Div([
-        html.H3("Add Generator Offer"),
-        dcc.Dropdown(id="gen-address-dropdown", options=accounts, placeholder="Select Generator Account"),
-        dcc.Input(id="gen-energy", type="number", placeholder="Energy Capacity", step=1),
-        dcc.Input(id="gen-price", type="number", placeholder="Price per Unit", step=0.01),
-        html.Button("Add Offer", id="add-gen-button", n_clicks=0),
-        html.Div(id="gen-status")
-    ], style={"marginBottom": "20px"}),
+        dbc.Col([
+            html.H3("Run Matching Algorithm", className="text-secondary"),
+            dbc.Button("Run Matching", id="run-matching-button", color="success", className="mb-3"),
+            html.Div(id="matching-status", className="text-success")
+        ], width=6)
+    ]),
+dbc.Row([
+        dbc.Col([
+            html.H3("Add Generator Offer", className="text-secondary"),
+            dbc.InputGroup([
+                dcc.Dropdown(
+                    id="gen-address-dropdown",
+                    options=accounts,
+                    placeholder="Select Account",
+                    style={"width": "100%"}
+                ),
+                dbc.Input(id="gen-energy", type="number", placeholder="Energy Capacity", step=1),
+                dbc.Input(id="gen-price", type="number", placeholder="Price per Unit", step=0.01),
+                dbc.Button("Add Offer", id="add-gen-button", color="primary", className="ml-2"),
+            ], className="mb-3"),
+            html.Div(id="gen-status", className="text-info")
+        ], width=6),
 
-    html.Div([
-        html.H3("Add Supplier Bid"),
-        dcc.Dropdown(id="sup-address-dropdown", options=accounts, placeholder="Select Supplier Account"),
-        dcc.Input(id="sup-demand", type="number", placeholder="Energy Demand", step=1),
-        dcc.Input(id="sup-max-price", type="number", placeholder="Max Price per Unit", step=0.01),
-        html.Button("Add Bid", id="add-sup-button", n_clicks=0),
-        html.Div(id="sup-status")
-    ], style={"marginBottom": "20px"}),
+        dbc.Col([
+            html.H3("Add Supplier Bid", className="text-secondary"),
+            dbc.InputGroup([
+                dcc.Dropdown(
+                    id="sup-address-dropdown",
+                    options=accounts,
+                    placeholder="Select Account",
+                    style={"width": "100%"}
+                ),
+                dbc.Input(id="sup-demand", type="number", placeholder="Energy Demand", step=1),
+                dbc.Input(id="sup-max-price", type="number", placeholder="Max Price per Unit", step=0.01),
+                dbc.Button("Add Bid", id="add-sup-button", color="primary", className="ml-2"),
+            ], className="mb-3"),
+            html.Div(id="sup-status", className="text-info")
+        ], width=6)
+    ]),
+dbc.Row([
+        dbc.Col([
+            html.H3("Outstanding Orders (Order Book)", className="text-secondary"),
+            dash_table.DataTable(
+                id="order-book-table",
+                columns=[
+                    {"name": "Order Type", "id": "order_type"},
+                    {"name": "Account", "id": "account"},
+                    {"name": "Energy", "id": "energy"},
+                    {"name": "Price (SPARK)", "id": "price"}
+                ],
+                style_table={"overflowX": "auto"},
+                style_header={"backgroundColor": "rgb(230, 230, 230)", "fontWeight": "bold"},
+                style_cell={"textAlign": "center", "padding": "5px"},
+                style_data={"backgroundColor": "rgb(245, 245, 245)"}
+            )
+        ], width=12)
+    ]),
 
-    html.Div([
-        html.Button("Run Matching Algorithm", id="run-matching-button", n_clicks=0),
-        html.Div(id="matching-status")
-    ], style={"marginBottom": "20px"}),
-
-    html.Div([
-        html.H3("Outstanding Orders (Order Book)"),
-        dash_table.DataTable(id="order-book-table", columns=[
-            {"name": "Order Type", "id": "order_type"},
-            {"name": "Account", "id": "account"},
-            {"name": "Energy", "id": "energy"},
-            {"name": "Price (SPARK)", "id": "price"}
-        ], style_table={"overflowX": "auto"})
-    ], style={"marginBottom": "20px"}),
-
-    html.Div([
-        html.H3("Matched Trades"),
-        dash_table.DataTable(id="trade-table", columns=[
-            {"name": "Generator ID", "id": "generator_id"},
-            {"name": "Supplier ID", "id": "supplier_id"},
-            {"name": "Energy Exchanged", "id": "energy_exchanged"},
-            {"name": "Price (SPARK)", "id": "price"}
-        ], style_table={"overflowX": "auto"})
-    ], style={"marginBottom": "20px"}),
-
-    html.Div([
-        html.H3("Current Funds"),
-        dash_table.DataTable(id="funds-table", columns=[
-            {"name": "Account", "id": "account"},
-            {"name": "SPARK Balance", "id": "balance"}
-        ], style_table={"overflowX": "auto"})
-    ])
-])
+    dbc.Row([
+        dbc.Col([
+            html.H3("Matched Trades", className="text-secondary"),
+            dash_table.DataTable(
+                id="trade-table",
+                columns=[
+                    {"name": "Generator ID", "id": "generator_id"},
+                    {"name": "Supplier ID", "id": "supplier_id"},
+                    {"name": "Energy Exchanged", "id": "energy_exchanged"},
+                    {"name": "Price (SPARK)", "id": "price"}
+                ],
+                style_table={"overflowX": "auto"},
+                style_header={"backgroundColor": "rgb(230, 230, 230)", "fontWeight": "bold"},
+                style_cell={"textAlign": "center", "padding": "5px"},
+                style_data={"backgroundColor": "rgb(245, 245, 245)"}
+            )
+        ], width=12)
+    ]),
+    dbc.Row([
+            dbc.Col([
+                html.H3("Current Funds", className="text-secondary"),
+                dash_table.DataTable(
+                    id="funds-table",
+                    columns=[
+                        {"name": "Account", "id": "account"},
+                        {"name": "SPARK Balance", "id": "balance"}
+                    ],
+                    style_table={"overflowX": "auto"},
+                    style_header={"backgroundColor": "rgb(230, 230, 230)", "fontWeight": "bold"},
+                    style_cell={"textAlign": "center", "padding": "5px"},
+                    style_data={"backgroundColor": "rgb(245, 245, 245)"}
+                )
+            ], width=12)
+        ])
+    ], fluid=True)
 
 # Callbacks
 @app.callback(
@@ -194,7 +251,7 @@ app.layout = html.Div([
     State("fund-amount", "value")
 )
 def fund_account(n_clicks, account, amount):
-    if n_clicks > 0:
+    if n_clicks and n_clicks > 0:
         try:
             fund_accounts_with_spark(blockchain, [account], amount)
             return f"Account {account} funded with {amount} SPARK tokens."
@@ -261,7 +318,7 @@ def handle_orders(gen_n_clicks, sup_n_clicks,
     Input("run-matching-button", "n_clicks")
 )
 def run_matching_algorithm(n_clicks):
-    if n_clicks > 0:
+    if n_clicks and n_clicks > 0:
         try:
             trade_details = run_simulation()
 
@@ -290,4 +347,4 @@ def update_funds_table(n_clicks):
         return []
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
