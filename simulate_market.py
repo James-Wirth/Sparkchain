@@ -24,13 +24,12 @@ def fund_accounts_with_spark(blockchain, accounts, amount):
 
 
 def run_simulation():
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    token_abi_path = os.path.join(base_dir, "contracts", "SPARKToken.abi")
-    trading_abi_path = os.path.join(base_dir, "contracts", "EnergyTrading.abi")
+    token_abi_path = os.path.join("contracts", "SPARKToken.abi")
+    trading_abi_path = os.path.join("contracts", "EnergyTrading.abi")
 
     provider_url = "http://127.0.0.1:8545"
 
-    deployment_path = os.path.join(os.path.dirname(__file__), "deployment.json")
+    deployment_path = os.path.join("scripts", "deployment.json")
     with open(deployment_path, "r") as file:
         deployment_data = json.load(file)
     token_address = deployment_data["SPARKToken"]
@@ -41,7 +40,6 @@ def run_simulation():
     ganache_manager = GanacheManager()
     generator_address = ganache_manager.get_account(1)["address"]
     supplier_address = ganache_manager.get_account(2)["address"]
-
 
     fund_accounts_with_spark(blockchain, [generator_address, supplier_address], 5000)
     try:
@@ -90,11 +88,49 @@ def run_simulation():
 
     for (offer_idx, bid_idx), trade_energy in matched_trades.items():
         try:
+            # Fetch the offer and bid to log relevant details
+            offer = offers[offer_idx]
+            bid = bids[bid_idx]
+
+            print(f"Executing Trade: Offer {offer_idx} -> Bid {bid_idx}")
+            print(f"Offer Energy: {offer[1]}, Offer Price: {offer[2]}")
+            print(f"Bid Energy: {bid[1]}, Bid Price: {bid[2]}")
+            print(f"Requested Trade Energy: {trade_energy}")
+
+            # Check the trade conditions before executing
+            if trade_energy > offer[1]:
+                print(f"Trade energy {trade_energy} exceeds offer energy {offer[1]}")
+                continue
+            if trade_energy > bid[1]:
+                print(f"Trade energy {trade_energy} exceeds bid energy {bid[1]}")
+                continue
+            if bid[2] < offer[2]:
+                print(f"Bid price {bid[2]} is lower than offer price {offer[2]}")
+                continue
+
+            # Execute the trade
             txn = blockchain.trading_contract.functions.executeTrade(
                 offer_idx, bid_idx, int(trade_energy)
-            ).transact()
-            receipt = blockchain.web3.eth.wait_for_transaction_receipt(txn)
-            print(f"Trade executed: Offer {offer_idx} -> Bid {bid_idx}, Energy: {trade_energy}, Txn Hash: {receipt.transactionHash.hex()}")
+            ).build_transaction({
+                'from': blockchain.web3.eth.accounts[0],
+                'nonce': blockchain.web3.eth.get_transaction_count(blockchain.web3.eth.accounts[0]),
+                'gas': 500000,  # Make sure we provide enough gas
+                'gasPrice': blockchain.web3.to_wei('20', 'gwei')
+            })
+
+            # Print the transaction details before signing and sending
+            print(f"Transaction: {txn}")
+
+            # Sign the transaction using the private key of the account
+            private_key = ganache_manager.get_account(0)["private_key"]  # Ensure you get the private key
+            signed_tx = blockchain.web3.eth.account.sign_transaction(txn, private_key=private_key)
+            tx_hash = blockchain.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            receipt = blockchain.web3.eth.wait_for_transaction_receipt(tx_hash)
+
+            # Print the receipt to confirm the transaction
+            print(f"Trade executed successfully: {receipt}")
+            print(f"Transaction hash: {tx_hash.hex()}")
+
         except Exception as e:
             print(f"Trade failed: Offer {offer_idx} -> Bid {bid_idx}, Energy: {trade_energy}. Reason: {e}")
 
