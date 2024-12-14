@@ -1,6 +1,6 @@
 # Sparkchain⚡
 
-![image](https://github.com/user-attachments/assets/fd163728-fa18-47fe-83e9-bb2cebe74fcc)
+![image](https://github.com/user-attachments/assets/dd484e1c-debe-415c-8dd4-4c6d66840218)
 
 ## Warning!
 
