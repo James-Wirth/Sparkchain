@@ -1,8 +1,10 @@
-# Sparkchain⚡
+![image](https://github.com/user-attachments/assets/5392b0b0-7d26-41a3-ad54-d5c006b84140)# Sparkchain⚡
 
 ## Warning!
 
 This project is under active development. 
+
+![image](https://github.com/user-attachments/assets/fd163728-fa18-47fe-83e9-bb2cebe74fcc)
 
 ## Setup
 
