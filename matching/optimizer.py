@@ -1,5 +1,4 @@
-from pulp import LpMaximize, LpProblem, LpVariable, lpSum, value
-
+from pulp import LpMaximize, LpProblem, LpVariable, lpSum
 
 class TradeMatcher:
     def __init__(self, offers, bids):
@@ -12,47 +11,42 @@ class TradeMatcher:
         return data
 
     def optimize_matching(self):
-        """
-        Optimizes the matching of bids and offers, aiming to match them at the best possible prices.
-        :return: Dictionary of matched trades in the format:
-                 {(offer_index, bid_index): trade_energy, ...}
-        """
-        matched_trades = {}
+        prob = LpProblem("Maximize_Social_Welfare", LpMaximize)
 
-        # Sort offers by price (ascending), bids by price (descending)
-        sorted_offers = sorted(enumerate(self.offers), key=lambda x: x[1]['price'])
-        sorted_bids = sorted(enumerate(self.bids), key=lambda x: x[1]['price'], reverse=True)
+        trade_vars = {}
+        for i, offer in enumerate(self.offers):
+            for j, bid in enumerate(self.bids):
+                trade_vars[(i, j)] = LpVariable(f"trade_{i}_{j}", lowBound=0, cat="Continuous")
 
-        # Initialize pointers for offers and bids
-        offer_idx = 0
-        bid_idx = 0
+        prob += lpSum(
+            trade_vars[(i, j)] * (bid['price'] - offer['price'])
+            for i, offer in enumerate(self.offers)
+            for j, bid in enumerate(self.bids)
+        )
 
-        # Start matching offers and bids
-        while offer_idx < len(sorted_offers) and bid_idx < len(sorted_bids):
-            offer = sorted_offers[offer_idx][1]
-            bid = sorted_bids[bid_idx][1]
+        for i, offer in enumerate(self.offers):
+            prob += lpSum(trade_vars[(i, j)] for j in range(len(self.bids))) <= offer['energy'], f"OfferEnergy_{i}"
+        for j, bid in enumerate(self.bids):
+            prob += lpSum(trade_vars[(i, j)] for i in range(len(self.offers))) <= bid['energy'], f"BidEnergy_{j}"
 
-            # Check if bid price is at least equal to offer price (can we match?)
-            if bid['price'] >= offer['price'] and offer['energy'] > 0 and bid['energy'] > 0:
-                # Determine the amount of energy that can be traded
-                trade_energy = min(offer['energy'], bid['energy'])
+        prob.solve()
 
-                # Register the match
-                matched_trades[(sorted_offers[offer_idx][0], sorted_bids[bid_idx][0])] = trade_energy
+        matched_trades = {
+            (i, j): trade_vars[(i, j)].varValue
+            for i, offer in enumerate(self.offers)
+            for j, bid in enumerate(self.bids)
+            if trade_vars[(i, j)].varValue > 0
+        }
 
-                # Update the energy of the offer and bid
-                self.offers[sorted_offers[offer_idx][0]]['energy'] -= trade_energy
-                self.bids[sorted_bids[bid_idx][0]]['energy'] -= trade_energy
+        offer_prices = []
+        bid_prices = []
+        for (i, j), trade_energy in matched_trades.items():
+            offer_prices.append(self.offers[i]['price'])
+            bid_prices.append(self.bids[j]['price'])
 
-                # If the offer is fulfilled, move to the next offer
-                if self.offers[sorted_offers[offer_idx][0]]['energy'] == 0:
-                    offer_idx += 1
-
-                # If the bid is fulfilled, move to the next bid
-                if self.bids[sorted_bids[bid_idx][0]]['energy'] == 0:
-                    bid_idx += 1
-            else:
-                # If the bid price is too low for this offer, move to the next bid
-                bid_idx += 1
+        if matched_trades:
+            clearing_price = max(min(bid_prices), max(offer_prices))
+        else:
+            clearing_price = None
 
         return matched_trades

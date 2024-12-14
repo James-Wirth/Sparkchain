@@ -17,15 +17,12 @@ class Blockchain:
         self.trading_contract = self.web3.eth.contract(address=self.trading_address, abi=self.trading_abi)
 
     def validate_private_key(self, private_key):
-        """Ensure the private key is exactly 32 bytes long."""
-        if len(private_key) != 66:  # Including the 0x prefix
+        if len(private_key) != 66:
             raise ValueError(f"Invalid private key length: {len(private_key)}. It should be 66 characters.")
 
     def add_liquidity(self, account, private_key, energy, spark):
-        # Validate the private key length
         self.validate_private_key(private_key)
 
-        # Token approval transaction
         spark_token = self.web3.eth.contract(address=self.token_address, abi=self.token_abi)
         nonce = self.web3.eth.get_transaction_count(account)
         approval_txn = spark_token.functions.approve(self.trading_address, spark).build_transaction({
@@ -37,10 +34,8 @@ class Blockchain:
         txn_hash = self.web3.eth.send_raw_transaction(signed_txn.raw_transaction)
         self.web3.eth.wait_for_transaction_receipt(txn_hash)
 
-        # Increment nonce after approval transaction
         nonce += 1
 
-        # Liquidity adding transaction
         tx = self.trading_contract.functions.addLiquidity(energy, spark).build_transaction({
             'from': account,
             'nonce': nonce,

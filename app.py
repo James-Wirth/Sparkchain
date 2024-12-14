@@ -8,6 +8,33 @@ from matching.optimizer import TradeMatcher
 import os
 import json
 
+def get_outstanding_orders(blockchain):
+    try:
+        offers = blockchain.trading_contract.functions.getOffers().call()
+        bids = blockchain.trading_contract.functions.getBids().call()
+
+        order_book = []
+        for offer in offers:
+            order_book.append({
+                "order_type": "Offer",
+                "account": offer[0],
+                "energy": offer[1],
+                "price": offer[2]
+            })
+
+        for bid in bids:
+            order_book.append({
+                "order_type": "Bid",
+                "account": bid[0],
+                "energy": bid[1],
+                "price": bid[2]
+            })
+
+        return order_book
+    except Exception as e:
+        print(f"Error fetching outstanding orders: {e}")
+        return []
+
 def fund_accounts_with_spark(blockchain, accounts, amount):
     ganache_manager = GanacheManager()
     owner_account = ganache_manager.get_account(0)
@@ -76,11 +103,9 @@ def run_simulation():
 
     return trade_details
 
-# Initialize the app
 app = dash.Dash(__name__)
 app.title = "Energy Trading Simulation"
 
-# Blockchain setup
 provider_url = "http://127.0.0.1:8545"
 token_abi_path = os.path.join("contracts", "SPARKToken.abi")
 trading_abi_path = os.path.join("contracts", "EnergyTrading.abi")
@@ -93,7 +118,6 @@ trading_address = deployment_data["EnergyTrading"]
 blockchain = Blockchain(provider_url, token_abi_path, token_address, trading_abi_path, trading_address)
 ganache_manager = GanacheManager()
 
-# Generate account dropdown options (excluding account 0)
 accounts = [
     {"label": f"Account {i}: {ganache_manager.get_account(i)['address']}", "value": ganache_manager.get_account(i)['address']}
     for i in range(1, 10)
@@ -179,47 +203,58 @@ def fund_account(n_clicks, account, amount):
     return ""
 
 @app.callback(
-    Output("gen-status", "children"),
-    Input("add-gen-button", "n_clicks"),
-    State("gen-address-dropdown", "value"),
-    State("gen-energy", "value"),
-    State("gen-price", "value")
+    [Output("gen-status", "children"),
+     Output("sup-status", "children"),
+     Output("order-book-table", "data")],
+    [Input("add-gen-button", "n_clicks"),
+     Input("add-sup-button", "n_clicks")],
+    [State("gen-address-dropdown", "value"),
+     State("gen-energy", "value"),
+     State("gen-price", "value"),
+     State("sup-address-dropdown", "value"),
+     State("sup-demand", "value"),
+     State("sup-max-price", "value")]
 )
-def add_generator_offer(n_clicks, address, energy, price):
-    if n_clicks > 0:
-        try:
-            generator = Generator(generator_id=f"Gen-{address[-4:]}", energy_capacity=energy, price_per_unit=price, address=address)
-            generator.submit_offer(blockchain)
-            return f"Generator {address} added an offer of {energy} units at {price} SPARK per unit."
-        except Exception as e:
-            return f"Error adding generator offer: {e}"
-    return ""
+def handle_orders(gen_n_clicks, sup_n_clicks,
+                  gen_address, gen_energy, gen_price,
+                  sup_address, sup_demand, sup_max_price):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return "", "", []
 
-@app.callback(
-    Output("sup-status", "children"),
-    Input("add-sup-button", "n_clicks"),
-    State("sup-address-dropdown", "value"),
-    State("sup-demand", "value"),
-    State("sup-max-price", "value")
-)
-def add_supplier_bid(n_clicks, address, demand, max_price):
-    if n_clicks > 0:
-        if not address:
-            return "Error: Please select a supplier account."
-        if demand is None or max_price is None:
-            return "Error: Please enter valid values for demand and max price."
-        try:
+    # Determine which button was clicked
+    triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    gen_status = ""
+    sup_status = ""
+    order_book = []
+
+    try:
+        if triggered_id == "add-gen-button" and gen_n_clicks > 0:
+            generator = Generator(generator_id=f"Gen-{gen_address[-4:]}", energy_capacity=gen_energy, price_per_unit=gen_price, address=gen_address)
+            generator.submit_offer(blockchain)
+            gen_status = f"Generator {gen_address} added an offer of {gen_energy} units at {gen_price} SPARK per unit."
+
+        elif triggered_id == "add-sup-button" and sup_n_clicks > 0:
             supplier = Supplier(
-                supplier_id=f"Sup-{address[-4:]}",
-                energy_demand=demand,
-                max_price_per_unit=max_price,
-                address=address
+                supplier_id=f"Sup-{sup_address[-4:]}",
+                energy_demand=sup_demand,
+                max_price_per_unit=sup_max_price,
+                address=sup_address
             )
             supplier.submit_bid(blockchain)
-            return f"Supplier {address} added a bid for {demand} units at max {max_price} SPARK per unit."
-        except Exception as e:
-            return f"Error adding supplier bid: {e}"
-    return ""
+            sup_status = f"Supplier {sup_address} added a bid for {sup_demand} units at max {sup_max_price} SPARK per unit."
+
+        order_book = get_outstanding_orders(blockchain)
+
+    except Exception as e:
+        if triggered_id == "add-gen-button":
+            gen_status = f"Error adding generator offer: {e}"
+        elif triggered_id == "add-sup-button":
+            sup_status = f"Error adding supplier bid: {e}"
+
+    return gen_status, sup_status, order_book
+
 
 @app.callback(
     [Output("matching-status", "children"), Output("trade-table", "data")],
@@ -230,7 +265,6 @@ def run_matching_algorithm(n_clicks):
         try:
             trade_details = run_simulation()
 
-            # Check if there are any matches
             if not trade_details:
                 return "No trades matched.", []
 
@@ -249,12 +283,11 @@ def update_funds_table(n_clicks):
         funds_data = [
             {"account": f"Account {i}: {ganache_manager.get_account(i)['address']}",
              "balance": blockchain.token_contract.functions.balanceOf(ganache_manager.get_account(i)['address']).call()}
-            for i in range(1, 10)  # Exclude account 0
+            for i in range(1, 10)
         ]
         return funds_data
     except Exception as e:
         return []
 
-# Run the app
 if __name__ == "__main__":
     app.run_server(debug=True)
