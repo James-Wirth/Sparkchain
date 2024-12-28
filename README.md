@@ -1,6 +1,6 @@
 # Sparkchain⚡
 
-![image](https://github.com/user-attachments/assets/dd484e1c-debe-415c-8dd4-4c6d66840218)
+<img width="1506" alt="Screenshot 2024-12-28 at 22 00 20" src="https://github.com/user-attachments/assets/4ad14d0e-86a7-415f-99d4-651c9f832fa9" />
 
 ## Warning!
 
