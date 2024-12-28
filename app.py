@@ -126,122 +126,138 @@ accounts = [
     }
     for i in range(1, 10)
 ]
-
-# Layout with modern components
+# Enhanced Layout with Modern Features and Trades Tab
+# Layout
 app.layout = dbc.Container([
     dbc.Row(
-        dbc.Col(html.H1("Blockchain Energy Trading Simulation", className="text-center text-primary my-4"), width=12)
+        dbc.Col(
+            html.H1("Sparkchain Energy Trading", className="text-center text-primary mb-4"), width=12
+        )
     ),
 
+dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader("Order Book"),
+                dbc.CardBody([
+                    dash_table.DataTable(
+                        id="order-book-table",
+                        columns=[
+                            {"name": "Order Type", "id": "order_type"},
+                            {"name": "Account", "id": "account"},
+                            {"name": "Energy", "id": "energy"},
+                            {"name": "Price (SPARK)", "id": "price"}
+                        ],
+                        style_table={"overflowX": "auto"},
+                        style_cell={"textAlign": "center", "padding": "5px"},
+                        style_header={"fontWeight": "bold"}
+                    )
+                ])
+            ])
+        ], width=12)
+    ], className="mb-4"),
+
     dbc.Row([
         dbc.Col([
-            html.H3("Fund Accounts", className="text-secondary"),
-            dbc.InputGroup([
-                dcc.Dropdown(
-                    id="fund-account-dropdown",
-                    options=accounts,
-                    placeholder="Select Account",
-                    style={"width": "100%"}
-                ),
-                dbc.Input(id="fund-amount", type="number", placeholder="Amount (SPARK)", step=1),
-                dbc.Button("Fund", id="fund-button", color="primary", className="ml-2"),
-            ], className="mb-3"),
-            html.Div(id="fund-status", className="text-info")
+            dbc.Card([
+                dbc.CardHeader("Matched Trades"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col(
+                            dbc.Button("Match", id="run-matching-button", color="success", className="w-100"),
+                            width=3
+                        ),
+                        dbc.Col(
+                            html.Div(id="matching-status", className="text-success"),
+                            width="auto",
+                            style={"display": "flex", "alignItems": "center", "justifyContent": "start"}
+                        )
+                    ], className="mb-3"),
+                    dash_table.DataTable(
+                        id="trade-table",
+                        columns=[
+                            {"name": "Generator ID", "id": "generator_id"},
+                            {"name": "Supplier ID", "id": "supplier_id"},
+                            {"name": "Energy Exchanged", "id": "energy_exchanged"},
+                            {"name": "Price (SPARK)", "id": "price"}
+                        ],
+                        style_table={"overflowX": "auto"},
+                        style_cell={"textAlign": "center", "padding": "5px"},
+                        style_header={"fontWeight": "bold"}
+                    )
+                ])
+            ])
+        ], width=12)
+    ],className="mb-4"),
+
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader("Add Generator Offer"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col(dcc.Dropdown(id="gen-address-dropdown", options=accounts, placeholder="Select Account"), width=6),
+                        dbc.Col(dbc.Input(id="gen-energy", type="number", placeholder="Energy Capacity", step=1), width=3),
+                        dbc.Col(dbc.Input(id="gen-price", type="number", placeholder="Price per Unit", step=0.01), width=3)
+                    ], className="mb-3"),
+                    dbc.Row([
+                        dbc.Col(dbc.Button("Add Offer", id="add-gen-button", color="primary", className="w-100"))
+                    ]),
+                    html.Div(id="gen-status", className="text-info mt-3")
+                ])
+            ])
         ], width=6),
 
         dbc.Col([
-            html.H3("Run Matching Algorithm", className="text-secondary"),
-            dbc.Button("Run Matching", id="run-matching-button", color="success", className="mb-3"),
-            html.Div(id="matching-status", className="text-success")
+            dbc.Card([
+                dbc.CardHeader("Add Supplier Bid"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col(dcc.Dropdown(id="sup-address-dropdown", options=accounts, placeholder="Select Account"), width=6),
+                        dbc.Col(dbc.Input(id="sup-demand", type="number", placeholder="Energy Demand", step=1), width=3),
+                        dbc.Col(dbc.Input(id="sup-max-price", type="number", placeholder="Max Price per Unit", step=0.01), width=3)
+                    ], className="mb-3"),
+                    dbc.Row([
+                        dbc.Col(dbc.Button("Add Bid", id="add-sup-button", color="primary", className="w-100"))
+                    ]),
+                    html.Div(id="sup-status", className="text-info mt-3")
+                ])
+            ])
         ], width=6)
-    ]),
-dbc.Row([
+    ], className="mb-4"),
+
+    dbc.Row([
         dbc.Col([
-            html.H3("Add Generator Offer", className="text-secondary"),
-            dbc.InputGroup([
-                dcc.Dropdown(
-                    id="gen-address-dropdown",
-                    options=accounts,
-                    placeholder="Select Account",
-                    style={"width": "100%"}
-                ),
-                dbc.Input(id="gen-energy", type="number", placeholder="Energy Capacity", step=1),
-                dbc.Input(id="gen-price", type="number", placeholder="Price per Unit", step=0.01),
-                dbc.Button("Add Offer", id="add-gen-button", color="primary", className="ml-2"),
-            ], className="mb-3"),
-            html.Div(id="gen-status", className="text-info")
+            dbc.Card([
+                dbc.CardHeader("Fund Accounts"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col(dcc.Dropdown(id="fund-account-dropdown", options=accounts, placeholder="Select Account"), width=8),
+                        dbc.Col(dbc.Input(id="fund-amount", type="number", placeholder="Amount (SPARK)", step=1), width=4)
+                    ], className="mb-3"),
+                    dbc.Row([
+                        dbc.Col(dbc.Button("Fund", id="fund-button", color="primary", className="w-100"))
+                    ]),
+                    html.Div(id="fund-status", className="text-info mt-3")
+                ])
+            ])
         ], width=6),
 
         dbc.Col([
-            html.H3("Add Supplier Bid", className="text-secondary"),
-            dbc.InputGroup([
-                dcc.Dropdown(
-                    id="sup-address-dropdown",
-                    options=accounts,
-                    placeholder="Select Account",
-                    style={"width": "100%"}
-                ),
-                dbc.Input(id="sup-demand", type="number", placeholder="Energy Demand", step=1),
-                dbc.Input(id="sup-max-price", type="number", placeholder="Max Price per Unit", step=0.01),
-                dbc.Button("Add Bid", id="add-sup-button", color="primary", className="ml-2"),
-            ], className="mb-3"),
-            html.Div(id="sup-status", className="text-info")
-        ], width=6)
-    ]),
-dbc.Row([
-        dbc.Col([
-            html.H3("Outstanding Orders (Order Book)", className="text-secondary"),
             dash_table.DataTable(
-                id="order-book-table",
+                id="funds-table",
                 columns=[
-                    {"name": "Order Type", "id": "order_type"},
                     {"name": "Account", "id": "account"},
-                    {"name": "Energy", "id": "energy"},
-                    {"name": "Price (SPARK)", "id": "price"}
+                    {"name": "SPARK Balance", "id": "balance"}
                 ],
-                style_table={"overflowX": "auto"},
-                style_header={"backgroundColor": "rgb(230, 230, 230)", "fontWeight": "bold"},
+                style_table={"overflowY": "auto", "maxHeight": "100%"},  # Limits height and enables scrolling
                 style_cell={"textAlign": "center", "padding": "5px"},
-                style_data={"backgroundColor": "rgb(245, 245, 245)"}
+                style_header={"fontWeight": "bold"},
             )
-        ], width=12)
-    ]),
+        ], width=6)
+    ], className="mb-4"),
+], fluid=True)
 
-    dbc.Row([
-        dbc.Col([
-            html.H3("Matched Trades", className="text-secondary"),
-            dash_table.DataTable(
-                id="trade-table",
-                columns=[
-                    {"name": "Generator ID", "id": "generator_id"},
-                    {"name": "Supplier ID", "id": "supplier_id"},
-                    {"name": "Energy Exchanged", "id": "energy_exchanged"},
-                    {"name": "Price (SPARK)", "id": "price"}
-                ],
-                style_table={"overflowX": "auto"},
-                style_header={"backgroundColor": "rgb(230, 230, 230)", "fontWeight": "bold"},
-                style_cell={"textAlign": "center", "padding": "5px"},
-                style_data={"backgroundColor": "rgb(245, 245, 245)"}
-            )
-        ], width=12)
-    ]),
-    dbc.Row([
-            dbc.Col([
-                html.H3("Current Funds", className="text-secondary"),
-                dash_table.DataTable(
-                    id="funds-table",
-                    columns=[
-                        {"name": "Account", "id": "account"},
-                        {"name": "SPARK Balance", "id": "balance"}
-                    ],
-                    style_table={"overflowX": "auto"},
-                    style_header={"backgroundColor": "rgb(230, 230, 230)", "fontWeight": "bold"},
-                    style_cell={"textAlign": "center", "padding": "5px"},
-                    style_data={"backgroundColor": "rgb(245, 245, 245)"}
-                )
-            ], width=12)
-        ])
-    ], fluid=True)
 
 # Callbacks
 @app.callback(
@@ -325,7 +341,7 @@ def run_matching_algorithm(n_clicks):
             if not trade_details:
                 return "No trades matched.", []
 
-            return "Matching completed successfully!", trade_details
+            return "Matching complete!", trade_details
         except Exception as e:
             return f"Error running matching algorithm: {e}", []
 
