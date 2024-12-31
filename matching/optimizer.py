@@ -1,14 +1,16 @@
 from pulp import LpMaximize, LpProblem, LpVariable, lpSum
 
+
+def normalize_data(data):
+    if isinstance(data[0], (tuple, list)):  # Check if input is tuple or list
+        return [{"id": d[0], "energy": d[1], "price": d[2]} for d in data]
+    return data
+
+
 class TradeMatcher:
     def __init__(self, offers, bids):
-        self.offers = self.normalize_data(offers)
-        self.bids = self.normalize_data(bids)
-
-    def normalize_data(self, data):
-        if isinstance(data[0], (tuple, list)):  # Check if input is tuple or list
-            return [{"id": d[0], "energy": d[1], "price": d[2]} for d in data]
-        return data
+        self.offers = normalize_data(offers)
+        self.bids = normalize_data(bids)
 
     def optimize_matching(self):
         prob = LpProblem("Maximize_Social_Welfare", LpMaximize)
@@ -37,7 +39,7 @@ class TradeMatcher:
             for j, bid in enumerate(self.bids)
             if trade_vars[(i, j)].varValue > 0
         }
-
+        
         offer_prices = []
         bid_prices = []
         for (i, j), trade_energy in matched_trades.items():
